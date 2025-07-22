@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  medlam:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_PATH=/app/backend/database/medlam.db
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      # Persister la base de données
+      - medlam_data:/app/backend/database
+      # Persister les logs
+      - medlam_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Service nginx pour servir le frontend (optionnel, pour la production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - medlam
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  medlam_data:
+    driver: local
+  medlam_logs:
+    driver: local
+
+networks:
+  default:
+    name: medlam_network
+
